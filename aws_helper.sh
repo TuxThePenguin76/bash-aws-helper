@@ -178,6 +178,96 @@ EOF
   $GREP "^\[" $CREDENTIALS |$CUT -d ']' -f 1 | $TR -d '['
 }
 
+function __extract_config_from_file() {
+ # Check for tools and get most compatible
+  local GREP=$(which ggrep  2>/dev/null || which grep 2>/dev/null)
+  if [ -z "$GREP" ]; then
+      __aws_helper_log 'error' 'Cannot locate tool: grep';
+      return 1
+  fi
+
+  local CUT=$(which cut 2>/dev/null)
+  if [ -z "$CUT" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: cut';
+    return 1
+  fi
+
+local AWK=$(which gawk 2>/dev/null || which awk 2>/dev/null )
+  if [ -z "$AWK" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: awk';
+    return 1
+  fi
+
+local HEAD=$(which ghead 2>/dev/null || which head 2>/dev/null )
+  if [ -z "$HEAD" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: head';
+    return 1
+  fi
+
+local SED=$(which gsed 2>/dev/null || which sed 2>/dev/null )
+  if [ -z "$SED" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: sed';
+    return 1
+  fi
+
+local XARGS=$(which gxargs 2>/dev/null || which xargs 2>/dev/null )
+  if [ -z "$XARGS" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: xargs';
+    return 1
+  fi
+
+# Default Config File
+CREDENTIALS="$HOME/.aws/credentials"
+
+# Extract data from the config section
+__header="[${AWS_PROFILE}]"
+
+# Find the first line in the section
+local __start=$($GREP -nF -- "$header" "$CREDENTIALS" | $CUT -d: -f1 | $HEAD -n1)
+if [ -z "$__start" ]; then
+ __aws_helper_log  "Section '$header' not found" >&2
+  exit 1
+fi
+
+# find the next section
+local __next=$($AWK -v s="$__start" 'NR>s && /^\[/{print NR; exit}' "$CREDENTIALS")
+
+if [ -z "$__next" ]; then
+  # no following section: extract output from from start+1 to EOF
+  local __output=$($SED -n "$((i__start+1)),\$p" "$CREDENTIALS"| $SED -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*=[[:space:]]*/=/')
+else
+  # extract between the two line numbers
+  local __output=$($SED -n "$((__start+1)),$((__next-1))p" "$CREDENTIALS"| $SED -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*=[[:space:]]*/=/')
+fi
+
+#parse output into variables
+while IFS='=' read -r __key __value; do
+  # skip empty or comment lines
+  [[ -z "$__key" || "$__key" =~ ^[[:space:]]*# ]] && continue
+
+  # trim whitespace
+  __key=$(echo "$__key" | $XARGS)
+  __value=$(echo "$__value" | $XARGS)
+
+  # assign variable
+  printf -v "$__key" '%s' "$__value"
+done < <(echo "${__output}")
+
+# if there are variables we need we can export them as new ones as to not clobber any other references
+if [[ -n $aws_access_key_id ]]; then
+ export  __discovered_aws_access_key_id=${aws_access_key_id}
+fi
+
+if [[ -n $aws_secret_access_key ]]; then
+ export  __discovered_aws_secret_access_key=${aws_secret_access_key}
+fi
+
+if [[ -n $mfa_serial ]]; then
+ export  __discovered_mfa_serial=${mfa_serial}
+fi
+
+}
+
 ##
 # Get list of aliases in ./aws-helper/config
 ##
@@ -474,8 +564,19 @@ EOF
     return 1;
   fi;
 
+# Try and extract useful information from existing credentials file
+__extract_config_from_file
+
+
   iam_user_name="$(echo ${AWS_ARN} | sed 's|[^/]*/||g')";
+
+#If we've been told the serial use it
+  if [[ -n ${__discovered_mfa_serial} ]]; then
+    mfa_serial=${__discovered_mfa_serial}
+    else
+    # Fallback to old method
   mfa_serial="arn:aws:iam::${AWS_ACCOUNT_ID}:mfa/${iam_user_name}";
+fi
 
   if [ -z "${mfa_token}" ]; then
     __aws_helper_log 'info' 'Enter MFA token: ' '-n';
