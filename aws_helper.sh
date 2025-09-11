@@ -565,6 +565,7 @@ __extract_config_from_file
     # Fallback to old method
   mfa_serial="arn:aws:iam::${AWS_ACCOUNT_ID}:mfa/${iam_user_name}";
 fi
+__aws_helper_log "Using mfa_serial : $mfa_serial"
 
   if [ -z "${mfa_token}" ]; then
     __aws_helper_log 'info' 'Enter MFA token: ' '-n';
