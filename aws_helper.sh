@@ -223,9 +223,9 @@ CREDENTIALS="$HOME/.aws/credentials"
 __header="[${AWS_PROFILE}]"
 
 # Find the first line in the section
-local __start=$($GREP -nF -- "$header" "$CREDENTIALS" | $CUT -d: -f1 | $HEAD -n1)
+local __start=$($GREP -nF -- "$__header" "$CREDENTIALS" | $CUT -d: -f1 | $HEAD -n1)
 if [ -z "$__start" ]; then
- __aws_helper_log  "Section '$header' not found" >&2
+ __aws_helper_log  "Section '$__header' not found" >&2
   exit 1
 fi
 
@@ -234,7 +234,7 @@ local __next=$($AWK -v s="$__start" 'NR>s && /^\[/{print NR; exit}' "$CREDENTIAL
 
 if [ -z "$__next" ]; then
   # no following section: extract output from from start+1 to EOF
-  local __output=$($SED -n "$((i__start+1)),\$p" "$CREDENTIALS"| $SED -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*=[[:space:]]*/=/')
+  local __output=$($SED -n "$((__start+1)),\$p" "$CREDENTIALS"| $SED -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*=[[:space:]]*/=/')
 else
   # extract between the two line numbers
   local __output=$($SED -n "$((__start+1)),$((__next-1))p" "$CREDENTIALS"| $SED -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*=[[:space:]]*/=/')
