@@ -253,6 +253,12 @@ while IFS='=' read -r __key __value; do
   printf -v "$__key" '%s' "$__value"
 done < <(echo "${__output}")
 
+# clean variables
+
+unset __discovered_aws_access_key_id
+unset __discovered_aws_secret_access_key
+unset __discovered_mfa_serial
+
 # if there are variables we need we can export them as new ones as to not clobber any other references
 if [[ -n $aws_access_key_id ]]; then
  export  __discovered_aws_access_key_id=${aws_access_key_id}
@@ -574,10 +580,19 @@ __extract_config_from_file
   if [[ -n ${__discovered_mfa_serial} ]]; then
     mfa_serial=${__discovered_mfa_serial}
     else
-    # Fallback to old method
-  mfa_serial="arn:aws:iam::${AWS_ACCOUNT_ID}:mfa/${iam_user_name}";
-fi
+    # Try to query "iam list-mfa-devices" if it is permitted without MFA
+    mfa_serial="$(aws iam list-mfa-devices --query 'MFADevices[*].SerialNumber' --output text)";
+    if ! [ "${?}" -eq 0 ]; then
+    # this did not work - Fallback to old method
+    mfa_serial="arn:aws:iam::${AWS_ACCOUNT_ID}:mfa/${iam_user_name}";
+    fi
+  fi
 __aws_helper_log "Using mfa_serial : $mfa_serial"
+
+# Prevent Data leakage
+unset __discovered_aws_access_key_id
+unset __discovered_aws_secret_access_key
+unset __discovered_mfa_serial
 
   if [ -z "${mfa_token}" ]; then
     __aws_helper_log 'info' 'Enter MFA token: ' '-n';
