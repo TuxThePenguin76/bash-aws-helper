@@ -652,11 +652,20 @@ EOF
 
   local expiry_epoch;
 
+  # Select best date tool , work around weaknesses in MacOS date command
+
+  local DATE=$(which gdate  2>/dev/null || which date 2>/dev/null)
+  if [ -z "$DATE" ]; then
+      __aws_helper_log 'error' 'Cannot locate tool: date';
+      return 1
+  fi
+
   # Workaround for OSX date
-  if [ "$(uname)" == "Darwin" ]; then
-    expiry_epoch="$(date -j -f \"%Y-%m-%dT%H:%M:%SZ\" \"${AWS_MFA_EXPIRY}\" +%s)";
+  if [ "$(uname)" == "Darwin" -a "$DATE" == "/bin/date" ] ; then
+    __aws_helper_log 'Please Install the Gnu Date tool'
+    exit 1
   else
-    expiry_epoch="$(date -d ${AWS_MFA_EXPIRY} +%s)";
+    expiry_epoch="$($DATE -d ${AWS_MFA_EXPIRY} +%s)";
   fi
 
   local current_epoch="$(date -u +%s)";
