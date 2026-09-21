@@ -318,6 +318,12 @@ EOF
       return 0;
   fi;
 
+local JQ=$(which jq 2>/dev/null )
+  if [ -z "$JQ" ]; then
+    __aws_helper_log 'error' 'Cannot locate tool: jq';
+    return 1
+  fi
+
   local sts_token;
   local sts_duration=43200; 
 
@@ -330,15 +336,15 @@ EOF
     esac;
   done
 
-  sts_token=($(aws sts get-session-token --duration-seconds "${sts_duration}" --output text));
+  sts_token=$(aws sts get-session-token --duration-seconds "${sts_duration}" --output json);
   if [ ${?} -ne 0 ]; then
     __aws_helper_log 'error' 'Failed to get STS token';
     return 1;
   fi;
 
-  AWS_ACCESS_KEY_ID="${sts_token[1]}";
-  AWS_SECRET_ACCESS_KEY="${sts_token[3]}";
-  AWS_SESSION_TOKEN="${sts_token[4]}";
+  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ '.Credentials.AccessKeyId');
+  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ '.Credentials.SecretAccessKey');
+  AWS_SESSION_TOKEN=$(echo sts_token | $JQ '.Credentials.SessionToken');
 
   if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_SESSION_TOKEN}" ]]; then
     export AWS_ACCESS_KEY_ID;
@@ -432,6 +438,12 @@ EOF
       return 0;
   fi
 
+  local JQ=$(which jq 2>/dev/null )
+    if [ -z "$JQ" ]; then
+      __aws_helper_log 'error' 'Cannot locate tool: jq';
+      return 1
+    fi
+
   local mfa_serial;
   local mfa_token;
   local sts_token;
@@ -470,16 +482,16 @@ EOF
     read -r mfa_token;
   fi;
 
-  sts_token=($(aws sts get-session-token --duration-seconds "${sts_duration}" --token-code "${mfa_token}" --serial-number "${mfa_serial}" --output text));
+  sts_token=$(aws sts get-session-token --duration-seconds "${sts_duration}" --token-code "${mfa_token}" --serial-number "${mfa_serial}" --output json);
   if [ ${?} -ne 0 ]; then
     __aws_helper_log 'error' 'Failed to get STS token';
     return 1;
   fi;
 
-  AWS_ACCESS_KEY_ID="${sts_token[1]}";
-  AWS_SECRET_ACCESS_KEY="${sts_token[3]}";
-  AWS_SESSION_TOKEN="${sts_token[4]}";
-  AWS_MFA_EXPIRY="${sts_token[2]}";
+  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ '.Credentials.AccessKeyId');
+  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ '.Credentials.SecretAccessKey');
+  AWS_SESSION_TOKEN=$(echo sts_token | $JQ '.Credentials.SessionToken');
+  AWS_MFA_EXPIRY=$(echo $sts_token | $JQ '.Credentials.Expiration');
 
   if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_SESSION_TOKEN}" ]]; then
     export AWS_ACCESS_KEY_ID;
