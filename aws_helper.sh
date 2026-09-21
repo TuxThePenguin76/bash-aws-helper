@@ -438,9 +438,9 @@ local JQ=$(which jq 2>/dev/null )
     return 1;
   fi;
 
-  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ '.Credentials.AccessKeyId');
-  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ '.Credentials.SecretAccessKey');
-  AWS_SESSION_TOKEN=$(echo $sts_token | $JQ '.Credentials.SessionToken');
+  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ -r '.Credentials.AccessKeyId');
+  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ -r '.Credentials.SecretAccessKey');
+  AWS_SESSION_TOKEN=$(echo $sts_token | $JQ -r '.Credentials.SessionToken');
 
   if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_SESSION_TOKEN}" ]]; then
     export AWS_ACCESS_KEY_ID;
@@ -605,10 +605,10 @@ unset __discovered_mfa_serial
     return 1;
   fi;
 
-  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ '.Credentials.AccessKeyId');
-  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ '.Credentials.SecretAccessKey');
-  AWS_SESSION_TOKEN=$(echo $sts_token | $JQ '.Credentials.SessionToken');
-  AWS_MFA_EXPIRY=$(echo $sts_token | $JQ '.Credentials.Expiration');
+  AWS_ACCESS_KEY_ID=$(echo $sts_token  | $JQ -r '.Credentials.AccessKeyId');
+  AWS_SECRET_ACCESS_KEY=$(echo $sts_token | $JQ -r '.Credentials.SecretAccessKey');
+  AWS_SESSION_TOKEN=$(echo $sts_token | $JQ -r '.Credentials.SessionToken');
+  AWS_MFA_EXPIRY=$(echo $sts_token | $JQ -r '.Credentials.Expiration');
 
   if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_SESSION_TOKEN}" ]]; then
     export AWS_ACCESS_KEY_ID;
